@@ -6,27 +6,34 @@
 // 3. Metadata 
 
 // 1. Contract Creation Code
-PUSH1 0x80
-PUSH1 0x40
-MSTORE
-CALLVALUE
-DUP1
-ISZERO
-PUSH1 0x0e
-JUMPI
-PUSH0
-DUP1
-REVERT
-JUMPDEST
-POP
-PUSH1 0xa5
-DUP1
-PUSH2 0x001b
-PUSH0
-CODECOPY
-PUSH0
-RETURN
-INVALID
+// Free memory Pointer
+PUSH1 0x80      // [0x80]
+PUSH1 0x40      // [0x40, 0x80]
+MSTORE          // []       Memory 0x40 -> 0x80
+
+// If someone sent value with this call, jump to the 0x0E PC/JumpDest
+CALLVALUE       // [msg.value]
+DUP1            // [msg.value, msg.value]
+ISZERO          // [msg.value == 0, msg.value]
+PUSH1 0x0e      // [0x0E, msg.value == 0, msg.value]
+JUMPI           // [msg.value]
+PUSH0           // [0x00, msg.value]
+DUP1            // [0x00, 0x00, msg.value]
+REVERT          // [msg.value]
+
+// Jump dest if msg.value == 0
+// Sticks the runtime code on chain
+JUMPDEST        // [msg.value]
+POP             // []
+PUSH1 0xa5      // [0xa5]
+DUP1            // [0xa5, 0xa5]
+PUSH2 0x001b    // [0x001b, 0xa5, 0xa5]
+PUSH0           // [0x00, 0x001b, 0xa5, 0xa5]
+CODECOPY        // [0xa5]               Memory: [runtie code]
+PUSH0           // [0x00, 0xa5]
+RETURN          // []
+INVALID         // []
+
 PUSH1 0x80
 PUSH1 0x40
 MSTORE
