@@ -1,3 +1,9 @@
 [submodule "evm-opcodes/1-horse-store/lib/foundry-huff"]
 	path = evm-opcodes/1-horse-store/lib/foundry-huff
 	url = https://github.com/huff-language/foundry-huff
+[submodule "evm-opcodes/1-horse-store/lib/openzeppelin-contracts"]
+	path = evm-opcodes/1-horse-store/lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "evm-opcodes/1-horse-store/lib/huffmate"]
+	path = evm-opcodes/1-horse-store/lib/huffmate
+	url = https://github.com/huff-language/huffmate
