@@ -21,6 +21,9 @@ PUSH0           // [0x00, msg.value]
 DUP1            // [0x00, 0x00, msg.value]
 REVERT          // [msg.value]
 
+// This part can be deleted to save gas costs when deploying the contract
+// Or add constructor() payable {} in the smart contract
+
 // Jump dest if msg.value == 0
 // Sticks the runtime code on chain
 JUMPDEST        // [msg.value]
@@ -34,49 +37,73 @@ PUSH0           // [0x00, 0xa5]
 RETURN          // []
 INVALID         // []
 
+// 2. Runtime Code
+// Entry point of all calls
+// free memory pointer
 PUSH1 0x80
 PUSH1 0x40
 MSTORE
-CALLVALUE
-DUP1
-ISZERO
-PUSH1 0x0e
-JUMPI
-PUSH0
-DUP1
-REVERT
-JUMPDEST
-POP
-PUSH1 0x04
-CALLDATASIZE
-LT
-PUSH1 0x30
-JUMPI
-PUSH0
-CALLDATALOAD
-PUSH1 0xe0
-SHR
-DUP1
-PUSH4 0xcdfead2e
-EQ
-PUSH1 0x34
-JUMPI
-DUP1
-PUSH4 0xe026c017
-EQ
-PUSH1 0x45
-JUMPI
-JUMPDEST
-PUSH0
-DUP1
-REVERT
-JUMPDEST
-PUSH1 0x43
-PUSH1 0x3f
-CALLDATASIZE
-PUSH1 0x04
-PUSH1 0x59
-JUMP
+
+CALLVALUE       // [msg.value]
+DUP1            // [msg.value, msg.value]
+ISZERO          // [msg.value == 0, msg.value]
+PUSH1 0x0e      // [0x0E, msg.value == 0, msg.value]
+JUMPI           // [msg.value]
+// Jump to "continue"   if msg.value == 0
+
+PUSH0           // [0x00, msg.value]
+DUP1            // [0x00, 0x00, msg.value, msg.value]
+REVERT          // [msg.value]
+
+// Jump dest if msg.value == 0, start here!
+// contiune
+JUMPDEST        // [msg.value]
+POP             // []
+PUSH1 0x04      // [0x04]
+CALLDATASIZE    // [calldata_size, 0x04]
+LT              // [calldata_size < 0x04]
+PUSH1 0x30      // [0x30, calldata_size < 0x04]
+JUMPI           // []
+// if calldata_size < 0x04 -> calldata_jump
+
+// Function dispatching in solidity!
+PUSH0           // [0]
+CALLDATALOAD    // [32bytes of calldata]
+PUSH1 0xe0      // [0xe0, 32bytes of calldata]
+SHR             // [calldata[0:4]] // function_selector
+
+// // Function dispatching for updateHorseNumber!
+DUP1            // [function_selector, function_selector]
+PUSH4 0xcdfead2e    // [0xcdfead2e, function_selector, function_selector] updateHorseNumber(uint256)
+EQ              // [function_selector == 0xcdfead2e, function_selector]
+PUSH1 0x34      // [0x34, function_selector == 0xcdfead2e, function_selector]
+JUMPI           // [function_selector]
+// if function_selector == 0xcdfead2e -> set_number_of_horses
+
+// Function dispatching for readNumberOfHorses
+DUP1            // [function_selector, function_selector]
+PUSH4 0xe026c017    // [0xe026c017, function_selector, function_selector]
+EQ              // [function_selector == 0xe026c017, function_selector]
+PUSH1 0x45      // [0x45, function_selector == 0xe026c017, function_selector]
+JUMPI           // [function_selector]
+// if function_selector == 0xe026c017 -> get_number_of_horses
+
+// calldata_jump
+// Revert  Jumpdest
+JUMPDEST        // []
+PUSH0           // [0]
+DUP1            // [0, 0]
+REVERT          // []
+
+// updateHorsesNumber jump dest 1
+JUMPDEST        // [function_selector]
+PUSH1 0x43      // [0x43, function_selector]
+PUSH1 0x3f      // [0x3f, 0x43, function_selector]
+CALLDATASIZE    // [calldata_siz, 0x3f, 0x43, function_selector]
+PUSH1 0x04      // [0x04, calldata_siz, 0x3f, 0x43, function_selector]
+PUSH1 0x59      // [0x59, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+JUMP            // [0x04, calldata_siz, 0x3f, 0x43, function_selector]
+
 JUMPDEST
 PUSH0
 SSTORE
@@ -100,22 +127,34 @@ SWAP2
 SUB
 SWAP1
 RETURN
-JUMPDEST
-PUSH0
-PUSH1 0x20
-DUP3
-DUP5
-SUB
-SLT
-ISZERO
-PUSH1 0x68
-JUMPI
-PUSH0
-DUP1
-REVERT
-JUMPDEST
-POP
-CALLDATALOAD
+
+// updateHorsesNumber jump dest 2
+// Check to see if there is a vaule to update the horse number to
+// 4 bytes for function selector, 32 bytes for horse number
+JUMPDEST        // [0x04, calldata_siz, 0x3f, 0x43, function_selector]
+PUSH0           // [0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+PUSH1 0x20      // [0x20, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+DUP3            // [0x04, 0x20, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+DUP5            // [calldata_siz, 0x04, 0x20, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+SUB             // [calldata_siz - 0x04, 0x20, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+SLT             // [calldata_siz - 0x04 < 0x20, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+ISZERO          // [more_calldata_than_selector?, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+PUSH1 0x68      // [0x68, more_calldata_than_selector?, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+JUMPI           // [0x68, more_calldata_than_selector?, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+// We are going to jump to jump dest 3 if there is more calldata than:
+// function selector + 0x20
+
+// Revert if there isn't enough calldata!
+PUSH0           // [0, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+DUP1            // [0, 0, 0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+REVERT          // [0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+
+// updateHorsesNumber jump dest 3
+JUMPDEST        // [0, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
+POP             // [0x04, calldata_siz, 0x3f, 0x43, function_selector]
+// Ignore the function selector, and just grab the data
+// 0xcdfead2e 0000000000000000000000000000000000000000000000000000000000000007
+CALLDATALOAD    // [calldata, 0x04, calldata_siz, 0x3f, 0x43, function_selector]
 SWAP2
 SWAP1
 POP
