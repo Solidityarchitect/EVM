@@ -16,7 +16,7 @@ contract HorseStoreYul {
         assembly {
             let num := sload(numberOfHorses.slot)
             mstore(0, num)
-            return(0, 20)
+            return(0, 0x20)
         }
     }
 }
